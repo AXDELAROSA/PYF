@@ -1,0 +1,376 @@
+-- //////////////////////////////////////////////////////////////
+-- // ARCHIVO:			
+-- //////////////////////////////////////////////////////////////
+-- // BASE DE DATOS:		PYF18_Finanzas
+-- // MODULO:				LIBRO_INGRESOS / ACTA INGRESOS
+-- // OPERACION:			LIBERACION / STORED PROCEDURES
+-- //////////////////////////////////////////////////////////////
+-- // Autor:				DANIEL PORTILLO	ROMERO
+-- // Fecha creación:		18/SEP/2018
+-- // Fecha modificación:	31/OCT/2018
+-- ////////////////////////////////////////////////////////////// 
+
+USE [PYF18_Finanzas_V9999_R0] 
+GO
+
+
+-- //////////////////////////////////////////////////////////////
+-- SELECT * FROM LIBRO_INGRESOS WHERE K_UNIDAD_OPERATIVA=15
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE ---> SELECT / FICHA
+-- //////////////////////////////////////////////////////////////
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]
+	@PP_L_DEBUG					INT,
+	@PP_K_SISTEMA_EXE			INT,
+	@PP_K_USUARIO_ACCION		INT,
+	-- ===========================
+	@PP_K_UNIDAD_OPERATIVA		INT,
+	@PP_F_OPERACION				DATE,
+	-- ===========================
+	@PP_K_CODIGO_1				INT,
+	@PP_K_CODIGO_2				INT,
+	@PP_K_CODIGO_3				INT,
+	-- ===========================
+	@OU_MONTO_NETO				DECIMAL(19,4) OUTPUT
+AS
+
+	DECLARE @VP_MONTO_NETO		DECIMAL(19,4) = 0
+	
+	-- =======================================
+
+	SELECT	@VP_MONTO_NETO =	SUM(MONTO_APLICAR)
+								FROM	LIBRO_INGRESOS, TIPO_LIBRO_INGRESOS
+								WHERE	LIBRO_INGRESOS.K_TIPO_LIBRO_INGRESOS=TIPO_LIBRO_INGRESOS.K_TIPO_LIBRO_INGRESOS					
+								AND		LIBRO_INGRESOS.K_UNIDAD_OPERATIVA=@PP_K_UNIDAD_OPERATIVA
+								AND		LIBRO_INGRESOS.F_OPERACION=@PP_F_OPERACION
+								AND		(	LIBRO_INGRESOS.K_TIPO_LIBRO_INGRESOS=@PP_K_CODIGO_1
+										OR	LIBRO_INGRESOS.K_TIPO_LIBRO_INGRESOS=@PP_K_CODIGO_2
+										OR	LIBRO_INGRESOS.K_TIPO_LIBRO_INGRESOS=@PP_K_CODIGO_3		)
+
+	-- =======================================
+
+	IF @VP_MONTO_NETO IS NULL
+		SET @VP_MONTO_NETO = 0
+
+	SET @OU_MONTO_NETO = @VP_MONTO_NETO
+
+	-- ////////////////////////////////////////////////////////////////////
+GO
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE ---> SELECT / FICHA
+-- //////////////////////////////////////////////////////////////
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '01/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '02/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '03/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '04/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '05/SEP/2018'
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]
+	@PP_L_DEBUG					INT,
+	@PP_K_SISTEMA_EXE			INT,
+	@PP_K_USUARIO_ACCION		INT,
+	-- ===========================
+	@PP_K_UNIDAD_OPERATIVA		INT,
+	@PP_F_OPERACION				DATE
+AS
+	-- ==========================================	
+	--#101	VENTA CONTADO
+	--#201	AJUSTE ERROR / VENTA CONTADO
+	DECLARE @VP_01_VENTA_CONTADO		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														101, 201, 0,
+														@OU_MONTO_NETO = @VP_01_VENTA_CONTADO	OUTPUT
+	-- ==========================================	
+	--#102	VENTA CREDITO
+	--#202	AJUSTE ERROR / VENTA CREDITO
+	DECLARE @VP_02_VENTA_CREDITO		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														102, 202, 0,
+														@OU_MONTO_NETO = @VP_02_VENTA_CREDITO	OUTPUT
+	-- ==========================================	
+	--#103	COBRANZA
+	--#203	AJUSTE ERROR / COBRANZA
+	DECLARE @VP_03_COBRANZA				DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														103, 203, 0,
+														@OU_MONTO_NETO = @VP_03_COBRANZA	OUTPUT
+	-- ==========================================	
+	--#104	VENTA VALE/GAS
+	--#204	AJUSTE ERROR / VENTA VALE/GAS
+	DECLARE @VP_04_VENTA_VALEGAS		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														104, 204, 0,
+														@OU_MONTO_NETO = @VP_04_VENTA_VALEGAS	OUTPUT
+	-- ==========================================	
+	--#105	VENTA ANTICIPADA
+	--#205	AJUSTE ERROR / VENTA ANTICIPADA
+	DECLARE @VP_05_VENTA_ANTICIPADA		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														105, 205, 0,
+														@OU_MONTO_NETO = @VP_05_VENTA_ANTICIPADA	OUTPUT
+	-- ============================================
+	--#106	VENTA CONTADO KG
+	--#206	AJUSTE ERROR / VENTA CONTADO KG
+	DECLARE @VP_06_VENTA_CONTADO_KG		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														106, 206, 0,
+														@OU_MONTO_NETO = @VP_06_VENTA_CONTADO_KG	OUTPUT
+	-- ==========================================	
+	--#107	VENTA CREDITO KG
+	--#207	AJUSTE ERROR / VENTA CREDITO KG
+	DECLARE @VP_07_VENTA_CREDITO_KG		DECIMAL(19,4) = 0
+
+	EXECUTE	[dbo].[PG_SK_LIBRO_INGRESOS_MONTO_NETO]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@PP_K_UNIDAD_OPERATIVA, @PP_F_OPERACION,
+														107, 207, 0,
+														@OU_MONTO_NETO = @VP_07_VENTA_CREDITO_KG	OUTPUT
+	-- ==========================================	
+
+	SELECT	@PP_K_UNIDAD_OPERATIVA		AS K_UNIDAD_OPERATIVA,
+			@PP_F_OPERACION				AS F_OPERACION,
+			@VP_01_VENTA_CONTADO		AS VENTA_CONTADO,
+			@VP_02_VENTA_CREDITO		AS VENTA_CREDITO,	
+			@VP_03_COBRANZA				AS COBRANZA,
+			@VP_04_VENTA_VALEGAS		AS VENTA_VALEGAS,
+			@VP_05_VENTA_ANTICIPADA		AS VENTA_ANTICIPADA,
+			@VP_06_VENTA_CONTADO_KG		AS VENTA_CONTADO_KG,
+			@VP_07_VENTA_CREDITO_KG		AS VENTA_CREDITO_KG
+
+	-- ////////////////////////////////////////////////////////////////////
+GO
+
+
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE ---> SELECT / FICHA
+-- //////////////////////////////////////////////////////////////
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '01/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '02/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '03/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '04/SEP/2018'
+-- [PG_SK_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA] 0,0,0, 3, '05/SEP/2018'
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_UP_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_UP_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_UP_LIBRO_INGRESOS_ACTA_X_K_UNIDAD_OPERATIVA]
+	@PP_L_DEBUG						INT,
+	@PP_K_SISTEMA_EXE				INT,
+	@PP_K_USUARIO_ACCION			INT,
+	-- ===========================
+	@PP_K_UNIDAD_OPERATIVA			INT,
+	@PP_F_OPERACION					DATE,
+	-- ===========================
+	@PP_VENTA_CONTADO				DECIMAL(19,4),
+	@PP_VENTA_CREDITO				DECIMAL(19,4),
+	@PP_COBRANZA					DECIMAL(19,4),
+	@PP_VENTA_VALEGAS				DECIMAL(19,4),
+	@PP_VENTA_ANTICIPADA			DECIMAL(19,4),
+	@PP_VENTA_CONTADO_KG			DECIMAL(19,4),
+	@PP_VENTA_CREDITO_KG			DECIMAL(19,4),
+	-- ===========================
+	@PP_AJUSTE_VENTA_CONTADO		DECIMAL(19,4),
+	@PP_AJUSTE_VENTA_CREDITO		DECIMAL(19,4),
+	@PP_AJUSTE_COBRANZA				DECIMAL(19,4),
+	@PP_AJUSTE_VENTA_VALEGAS		DECIMAL(19,4),
+	@PP_AJUSTE_VENTA_ANTICIPADA		DECIMAL(19,4),
+	@PP_AJUSTE_VENTA_CONTADO_KG		DECIMAL(19,4),
+	@PP_AJUSTE_VENTA_CREDITO_KG		DECIMAL(19,4)
+	-- ==========================================		
+AS
+
+	DECLARE @VP_MENSAJE		VARCHAR(300) = ''
+
+	-- /////////////////////////////////////////////////////////////////////
+
+	DECLARE @VP_K_LIBRO_INGRESOS			INT 
+
+	IF @VP_MENSAJE=''
+		EXECUTE [dbo].[PG_RN_LIBRO_INGRESOS_INSERT]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+														@VP_K_LIBRO_INGRESOS,
+														@OU_RESULTADO_VALIDACION = @VP_MENSAJE		OUTPUT
+
+	-- /////////////////////////////////////////////////////////////////////
+	
+	IF @VP_MENSAJE=''
+		BEGIN
+	
+		DECLARE @VP_K_ESTATUS_LIBRO_INGRESOS	INT = 1
+		DECLARE @VP_K_CONCEPTO_LIBRO_INGRESOS	INT = 1
+		DECLARE @VP_L_CAPTURA_MANUAL			INT = 1
+		DECLARE @VP_C_LIBRO_INGRESOS			VARCHAR(100) = 'ACTA'
+
+		-- ========================================
+		--#101	VENTA CONTADO
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													101, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_CONTADO, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT	
+		-- ========================================
+		--#201	AJUSTE ERROR / VENTA CONTADO
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													201, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_CONTADO, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT	
+		-- ========================================
+		--#102	VENTA CREDITO
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													102, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_CREDITO, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#202	AJUSTE ERROR / VENTA CREDITO
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													202, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_CREDITO, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#103	COBRANZA
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													103, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_COBRANZA, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#203	AJUSTE ERROR / COBRANZA
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													203, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_COBRANZA, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#104	VENTA VALE/GAS
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													104, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_VALEGAS, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#204	AJUSTE ERROR / VENTA VALE/GAS
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													204, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_VALEGAS, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#105	VENTA ANTICIPADA
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													105, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_ANTICIPADA, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#205	AJUSTE ERROR / VENTA ANTICIPADA
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													205, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_ANTICIPADA, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#106	VENTA CONTADO KG
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													106, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_CONTADO_KG, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT	
+		-- ========================================
+		--#206	AJUSTE ERROR / VENTA CONTADO KG
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													206, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_CONTADO_KG, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT	
+		-- ========================================
+		--#107	VENTA CREDITO KG
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													107, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_VENTA_CREDITO_KG, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		--#207	AJUSTE ERROR / VENTA CREDITO KG
+		EXECUTE	[dbo].[PG_IN_LIBRO_INGRESOS_SQL]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													207, @VP_K_ESTATUS_LIBRO_INGRESOS, @VP_K_CONCEPTO_LIBRO_INGRESOS,
+													@VP_L_CAPTURA_MANUAL,
+													@PP_K_UNIDAD_OPERATIVA, @VP_C_LIBRO_INGRESOS,
+													@PP_AJUSTE_VENTA_CREDITO_KG, @PP_F_OPERACION,
+													@OU_K_LIBRO_INGRESOS = @VP_K_LIBRO_INGRESOS		OUTPUT
+		-- ========================================
+		END
+
+	-- /////////////////////////////////////////////////////////////////////
+	
+	IF @VP_MENSAJE<>''
+		BEGIN
+		
+		SET		@VP_MENSAJE = 'No es posible [Actualizar] el [LIBRO_INGRESOS/ACTA]: ' + @VP_MENSAJE 
+		SET		@VP_MENSAJE = @VP_MENSAJE + ' ( '
+		SET		@VP_MENSAJE = @VP_MENSAJE + '[#LI.'+CONVERT(VARCHAR(10),@VP_K_LIBRO_INGRESOS)+']'
+		SET		@VP_MENSAJE = @VP_MENSAJE + ' )'
+		
+		END
+	
+	SELECT	@VP_MENSAJE AS MENSAJE, @VP_K_LIBRO_INGRESOS AS CLAVE
+	
+	-- //////////////////////////////////////////////////////////////
+GO
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////

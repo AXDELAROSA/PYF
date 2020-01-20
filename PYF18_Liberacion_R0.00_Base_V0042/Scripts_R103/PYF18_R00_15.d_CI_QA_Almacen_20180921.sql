@@ -1,0 +1,280 @@
+﻿-- //////////////////////////////////////////////////////////////
+-- // ARCHIVO:			
+-- //////////////////////////////////////////////////////////////
+-- // BASE DE DATOS:	PYF18_Finanzas
+-- // MODULO:			ALMACEN-GAS
+-- // OPERACION:		CARGA INICIAL / QA
+-- //////////////////////////////////////////////////////////////
+-- // Autor:			DANIEL PORTILLO	ROMERO
+-- // Fecha creación:	18/SEP/2018
+-- ////////////////////////////////////////////////////////////// 
+
+USE [PYF18_Finanzas_V9999_R0]
+GO
+
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE ---> 
+-- //////////////////////////////////////////////////////////////
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACEN_UTILIZACION]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACEN_UTILIZACION]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACEN_UTILIZACION]
+	@PP_L_DEBUG						INT,
+	@PP_K_SISTEMA_EXE				INT,
+	@PP_K_USUARIO_ACCION			INT,
+	-- ===========================
+	@PP_K_UNIDAD_OPERATIVA			INT
+AS			
+
+	DECLARE @VP_CAPACIDAD_ALMACEN_LITROS	DECIMAL(19,4)
+	DECLARE @VP_NIVEL_ALMACEN_LITROS		DECIMAL(19,4)
+
+	SELECT	@VP_CAPACIDAD_ALMACEN_LITROS = 	CAPACIDAD_ALMACEN_LITROS,
+			@VP_NIVEL_ALMACEN_LITROS =		NIVEL_ALMACEN_LITROS
+											FROM	UNIDAD_OPERATIVA
+											WHERE	K_UNIDAD_OPERATIVA=@PP_K_UNIDAD_OPERATIVA
+	-- ================================
+
+	IF @VP_CAPACIDAD_ALMACEN_LITROS IS NULL
+		BEGIN
+		SET @VP_CAPACIDAD_ALMACEN_LITROS	= 0
+		SET @VP_NIVEL_ALMACEN_LITROS		= 0
+		END
+
+	-- /////////////////////////////////////////////////////////////////////
+	
+
+	DECLARE @VP_UTILIZACION_ALMACEN		FLOAT
+
+	IF @VP_CAPACIDAD_ALMACEN_LITROS=0
+		SET	@VP_UTILIZACION_ALMACEN = ( 0 )
+	ELSE
+		SET	@VP_UTILIZACION_ALMACEN = ( @VP_NIVEL_ALMACEN_LITROS/@VP_CAPACIDAD_ALMACEN_LITROS )
+
+	-- ////////////////////////////////////////////////////////////////
+		
+	UPDATE	UNIDAD_OPERATIVA
+	SET		UTILIZACION_ALMACEN = @VP_UTILIZACION_ALMACEN
+	WHERE	K_UNIDAD_OPERATIVA=@PP_K_UNIDAD_OPERATIVA
+	
+	-- //////////////////////////////////////////////////////////////
+GO
+
+
+-- //////////////////////////////////////////////////////
+-- // SP // CARGA INICIAL
+-- //////////////////////////////////////////////////////
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACENES]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACENES]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACENES]
+	@PP_L_DEBUG						INT,
+	@PP_K_SISTEMA_EXE				INT,
+	@PP_K_USUARIO_ACCION			INT,
+	-- ===========================
+	@PP_K_UNIDAD_OPERATIVA			INT
+AS			
+	-- ==============================================
+
+	DECLARE @VP_CAPACIDAD_ALMACEN_LITROS	DECIMAL(19,4) = 0
+	DECLARE @VP_NIVEL_ALMACEN_LITROS		DECIMAL(19,4) = 0
+
+	SELECT	@VP_CAPACIDAD_ALMACEN_LITROS =	SUM(CAPACIDAD_ALMACEN_LITROS),
+			@VP_NIVEL_ALMACEN_LITROS =		SUM(NIVEL_ALMACEN_LITROS)
+											FROM	ALMACEN
+											WHERE	[K_UNIDAD_OPERATIVA]=@PP_K_UNIDAD_OPERATIVA
+	-- ===============================
+
+	IF @VP_CAPACIDAD_ALMACEN_LITROS IS NULL
+		BEGIN
+		SET	@VP_CAPACIDAD_ALMACEN_LITROS = 0 
+		SET @VP_NIVEL_ALMACEN_LITROS = 0
+		END
+
+	-- ==============================================
+
+	UPDATE	[UNIDAD_OPERATIVA]
+	SET		[CAPACIDAD_ALMACEN_LITROS]	= @VP_CAPACIDAD_ALMACEN_LITROS, 	
+			[NIVEL_ALMACEN_LITROS]		= @VP_NIVEL_ALMACEN_LITROS,		
+			[UTILIZACION_ALMACEN]		= 0
+	WHERE	[K_UNIDAD_OPERATIVA]=@PP_K_UNIDAD_OPERATIVA
+
+	-- ==============================================
+		
+	EXECUTE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACEN_UTILIZACION]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+																@PP_K_UNIDAD_OPERATIVA
+			
+	-- ////////////////////////////////////////////////////////////////
+GO
+
+
+
+-- //////////////////////////////////////////////////////
+-- // SP // CARGA INICIAL
+-- //////////////////////////////////////////////////////
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_CI_ALMACEN]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_CI_ALMACEN]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_CI_ALMACEN]
+	@PP_L_DEBUG						INT,
+	@PP_K_SISTEMA_EXE				INT,
+	@PP_K_USUARIO_ACCION			INT,
+	-- ===========================
+	@PP_K_ALMACEN					INT,
+	@PP_D_ALMACEN					[VARCHAR] (100),	
+	@PP_K_TIPO_ALMACEN				INT,	
+	@PP_K_ESTATUS_ALMACEN			INT,
+	@PP_F_OPERACION					DATE,
+	@PP_K_UNIDAD_OPERATIVA			INT,
+	@PP_C_ALMACEN					[VARCHAR] (255),
+	@PP_CAPACIDAD_ALMACEN_LITROS	DECIMAL(19,4),
+	@PP_NIVEL_ALMACEN_LITROS		DECIMAL(19,4)
+AS			
+	-- ==============================================
+
+	INSERT INTO ALMACEN
+		(	[K_ALMACEN],[D_ALMACEN],
+			[K_TIPO_ALMACEN], [K_ESTATUS_ALMACEN], 
+			-- ============================================
+			[F_OPERACION], 
+			[K_UNIDAD_OPERATIVA], [C_ALMACEN],
+			[CAPACIDAD_ALMACEN_LITROS], [NIVEL_ALMACEN_LITROS],		
+			[UTILIZACION_ALMACEN],	
+			-- ============================================
+			[K_USUARIO_ALTA], [F_ALTA], 
+			[K_USUARIO_CAMBIO], [F_CAMBIO],
+			[L_BORRADO], [K_USUARIO_BAJA], [F_BAJA]  )
+	VALUES	
+		(	@PP_K_ALMACEN, @PP_D_ALMACEN,
+			@PP_K_TIPO_ALMACEN, @PP_K_ESTATUS_ALMACEN,
+			-- ============================================
+			@PP_F_OPERACION, 
+			@PP_K_UNIDAD_OPERATIVA, @PP_C_ALMACEN,
+			@PP_CAPACIDAD_ALMACEN_LITROS, @PP_NIVEL_ALMACEN_LITROS, 	
+			0,	
+			-- ============================================
+			@PP_K_USUARIO_ACCION, GETDATE(), 
+			@PP_K_USUARIO_ACCION, GETDATE(),
+			0, NULL, NULL )
+
+	-- ==============================================
+		
+	EXECUTE [dbo].[PG_UP_ALMACEN_UTILIZACION]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+												@PP_K_ALMACEN
+
+	-- ==============================================
+
+	EXECUTE [dbo].[PG_UP_UNIDAD_OPERATIVA_ALMACENES]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,												
+														@PP_K_UNIDAD_OPERATIVA			
+				
+	-- ////////////////////////////////////////////////////////////////
+GO
+
+
+
+-- //////////////////////////////////////////////////////
+-- // SP // CARGA INICIAL
+-- //////////////////////////////////////////////////////
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ALMACEN]') AND type in (N'U'))
+	DELETE	FROM [dbo].[ALMACEN] 
+GO
+
+-- //////////////////////////////////////////////////////
+
+-- ===============================================
+SET NOCOUNT ON
+-- ===============================================
+-- SELECT * FROM UNIDAD_OPERATIVA
+-- SELECT * FROM ALMACEN
+
+
+-- ================== ALMACEN
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 1, 'ALMANCEN01', 1, 1, '2018-07-21', 13, 'XXYYZZ', 251085.16, 110477.4704
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 2, 'ALMANCEN02', 2, 1, '2018-07-21', 13, 'XXYYZZ', 245016.19, 137209.0664
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 3, 'ALMANCEN03', 3, 2, '2018-07-21', 13, 'XXYYZZ', 251144.88, 110503.7472
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 4, 'ALMANCEN04', 4, 3, '2018-07-22', 13, 'XXYYZZ', 246680, 143074.4
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 5, 'ALMANCEN05', 1, 4, '2018-07-22', 13, 'XXYYZZ', 246710.95, 194901.6505
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 6, 'ALMANCEN06', 2, 1, '2018-07-22', 13, 'XXYYZZ', 248291.06, 121662.6194
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 7, 'ALMANCEN07', 1, 1, '2018-07-23', 13, 'XXYYZZ', 246058.52, 177162.1344
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 8, 'ALMANCEN08', 2, 2, '2018-07-23', 13, 'XXYYZZ', 250510.31, 135275.5674
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 9, 'ALMANCEN09', 3, 3, '2018-07-23', 13, 'XXYYZZ', 250860.67, 135464.7618
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 10, 'ALMANCEN10', 4, 4, '2018-07-24', 13, 'XXYYZZ', 247028.2, 172919.74
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 11, 'ALMANCEN11', 1, 1, '2018-07-24', 13, 'XXYYZZ', 247028.72, 145746.9448
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 12, 'ALMANCEN12', 2, 1, '2018-07-24', 13, 'XXYYZZ', 83613, 45151.02
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 13, 'ALMANCEN13', 1, 2, '2018-07-25', 13, 'XXYYZZ', 85837, 65236.12
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 14, 'ALMANCEN14', 2, 3, '2018-07-25', 13, 'XXYYZZ', 85002, 56951.34
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 15, 'ALMANCEN15', 3, 4, '2018-07-25', 13, 'XXYYZZ', 85821, 66940.38
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 16, 'ALMANCEN17', 4, 1, '2018-07-26', 13, 'XXYYZZ', 84322, 38788.12
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 17, 'ALMANCEN18', 1, 1, '2018-07-26', 13, 'XXYYZZ', 85160, 50244.4
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 18, 'ALMANCEN19', 2, 2, '2018-07-26', 13, 'XXYYZZ', 84965, 44181.8
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 19, 'ALMANCEN20', 1, 3, '2018-07-27', 13, 'XXYYZZ', 84855, 65338.35
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 20, 'ALMANCEN01', 2, 4, '2018-07-27', 3, 'XXYYZZ', 250000, 127500
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 21, 'ALMANCEN02', 3, 1, '2018-07-27', 3, 'XXYYZZ', 251085.16, 110477.4704
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 22, 'ALMANCEN03', 4, 1, '2018-07-28', 3, 'XXYYZZ', 245016.19, 124958.2569
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 23, 'ALMANCEN04', 1, 2, '2018-07-28', 3, 'XXYYZZ', 251144.88, 150686.928
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 24, 'ALMANCEN05', 2, 3, '2018-07-28', 3, 'XXYYZZ', 246680, 140607.6
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 25, 'ALMANCEN06', 1, 4, '2018-07-29', 3, 'XXYYZZ', 246710.95, 187500.322
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 26, 'ALMANCEN07', 2, 1, '2018-07-29', 3, 'XXYYZZ', 248291.06, 198632.848
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 27, 'ALMANCEN08', 3, 1, '2018-07-29', 3, 'XXYYZZ', 246058.52, 142713.9416
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 28, 'ALMANCEN09', 4, 2, '2018-07-30', 3, 'XXYYZZ', 250510.31, 162831.7015
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 29, 'ALMANCEN10', 1, 3, '2018-07-30', 3, 'XXYYZZ', 250860.67, 178111.0757
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 30, 'ALMANCEN11', 2, 4, '2018-07-30', 3, 'XXYYZZ', 247028.2, 128454.664
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 31, 'ALMANCEN12', 1, 1, '2018-07-31', 3, 'XXYYZZ', 247028.72, 138336.0832
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 32, 'ALMANCEN13', 2, 1, '2018-07-31', 3, 'XXYYZZ', 83613, 56020.71
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 33, 'ALMANCEN14', 3, 2, '2018-07-31', 3, 'XXYYZZ', 85837, 65236.12
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 34, 'ALMANCEN15', 4, 3, '2018-08-01', 3, 'XXYYZZ', 85002, 50151.18
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 35, 'ALMANCEN17', 1, 4, '2018-08-01', 3, 'XXYYZZ', 85821, 65223.96
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 36, 'ALMANCEN18', 2, 1, '2018-08-01', 3, 'XXYYZZ', 84322, 63241.5
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 37, 'ALMANCEN19', 1, 1, '2018-08-02', 3, 'XXYYZZ', 85160, 58760.4
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 38, 'ALMANCEN20', 2, 2, '2018-08-02', 3, 'XXYYZZ', 84965, 55227.25
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 39, 'ALMANCEN01', 3, 3, '2018-08-02', 9, 'XXYYZZ', 84855, 38184.75
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 40, 'ALMANCEN02', 4, 4, '2018-08-03', 9, 'XXYYZZ', 250000, 195000
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 41, 'ALMANCEN03', 1, 1, '2018-08-03', 9, 'XXYYZZ', 251085.16, 190824.7216
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 42, 'ALMANCEN04', 2, 1, '2018-08-03', 9, 'XXYYZZ', 245016.19, 176411.6568
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 43, 'ALMANCEN05', 1, 2, '2018-08-04', 9, 'XXYYZZ', 251144.88, 135618.2352
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 44, 'ALMANCEN06', 2, 3, '2018-08-04', 9, 'XXYYZZ', 246680, 128273.6
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 45, 'ALMANCEN07', 3, 4, '2018-08-04', 9, 'XXYYZZ', 246710.95, 133223.913
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 46, 'ALMANCEN08', 4, 1, '2018-08-05', 9, 'XXYYZZ', 248291.06, 136560.083
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 47, 'ALMANCEN09', 1, 1, '2018-08-05', 9, 'XXYYZZ', 246058.52, 174701.5492
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 48, 'ALMANCEN10', 2, 2, '2018-08-05', 9, 'XXYYZZ', 250510.31, 127760.2581
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 49, 'ALMANCEN11', 1, 3, '2018-08-06', 9, 'XXYYZZ', 250860.67, 158042.2221
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 50, 'ALMANCEN12', 2, 4, '2018-08-06', 9, 'XXYYZZ', 247028.2, 118573.536
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 51, 'ALMANCEN13', 3, 1, '2018-08-06', 9, 'XXYYZZ', 247028.72, 111162.924
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 52, 'ALMANCEN14', 4, 1, '2018-08-07', 9, 'XXYYZZ', 83613, 56856.84
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 53, 'ALMANCEN15', 1, 2, '2018-08-07', 9, 'XXYYZZ', 85837, 47210.35
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 54, 'ALMANCEN17', 2, 3, '2018-08-07', 9, 'XXYYZZ', 85002, 62901.48
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 55, 'ALMANCEN18', 1, 4, '2018-08-08', 9, 'XXYYZZ', 85821, 40335.87
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 56, 'ALMANCEN19', 2, 1, '2018-08-08', 9, 'XXYYZZ', 84322, 64084.72
+EXECUTE [dbo].[PG_CI_ALMACEN] 0, 0, 0, 57, 'ALMANCEN20', 3, 1, '2018-08-08', 9, 'XXYYZZ', 85160, 47689.6
+
+GO
+
+
+-- ===============================================
+SET NOCOUNT OFF
+-- ===============================================
+
+
+
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////

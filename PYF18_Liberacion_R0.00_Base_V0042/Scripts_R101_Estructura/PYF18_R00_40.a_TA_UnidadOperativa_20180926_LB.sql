@@ -1,0 +1,142 @@
+-- //////////////////////////////////////////////////////////////
+-- // ARCHIVO:			
+-- //////////////////////////////////////////////////////////////
+-- // BASE DE DATOS:	PYF18_Finanzas 
+-- // MODULO:			UNIDAD OPERATIVA
+-- // OPERACION:		LIBERACION / TABLAS Y CONFIGURACIÓN
+-- ////////////////////////////////////////////////////////////// 
+
+USE [PYF18_Finanzas_V9999_R0] 
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+-- //////////////////////////////////////////////////////////////
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UNIDAD_OPERATIVA]') AND type in (N'U'))
+	DROP TABLE [dbo].[UNIDAD_OPERATIVA] 
+GO
+
+
+
+-- //////////////////////////////////////////////////////////////
+--//						UNIDAD_OPERATIVA 						
+-- //////////////////////////////////////////////////////////////
+
+CREATE TABLE [dbo].[UNIDAD_OPERATIVA] (
+	[K_UNIDAD_OPERATIVA]	[INT]           NOT NULL,
+	[D_UNIDAD_OPERATIVA]	[VARCHAR](100)	NOT NULL,
+	[C_UNIDAD_OPERATIVA]	[VARCHAR](500)	NOT NULL,
+	[S_UNIDAD_OPERATIVA]	[VARCHAR](10)	NOT NULL,
+	[O_UNIDAD_OPERATIVA]	[INT]           NOT NULL,	
+	[L_UNIDAD_OPERATIVA]	[INT]           NOT NULL,
+	[K_TIPO_UO]				[INT]           NOT NULL,
+	[K_ZONA_UO]				[INT]           NOT NULL,
+	[ICS_sucursalId]		[INT]			NOT NULL,
+	[K_SERVIDOR]			[INT]			NOT NULL, 
+	[K_RAZON_SOCIAL]		[INT]			NOT NULL,
+	[K_REGION]				[INT]			NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[PERMISO_CRE]			[VARCHAR](100)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[TELEFONO]				[VARCHAR](20)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[CALLE]					[VARCHAR](100)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[NUMERO_EXTERIOR]		[VARCHAR](10)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[NUMERO_INTERIOR]		[VARCHAR](10)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[COLONIA]				[VARCHAR](100)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[POBLACION]				[VARCHAR](100)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[CP]					[VARCHAR](10)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	[MUNICIPIO]				[VARCHAR](100)	NOT NULL,	-- WIWI CAMPO NUEVO 20180918
+	-- =============================== 
+	[CAPACIDAD_ALMACEN_LITROS]		DECIMAL(19,4) NOT NULL DEFAULT 0,
+	[NIVEL_ALMACEN_LITROS]			DECIMAL(19,4) NOT NULL DEFAULT 0,
+	[UTILIZACION_ALMACEN]			[FLOAT] NOT NULL DEFAULT 0
+) ON [PRIMARY]
+GO
+
+-- //////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA]
+	ADD CONSTRAINT [PK_UNIDAD_OPERATIVA]
+		PRIMARY KEY CLUSTERED ([K_UNIDAD_OPERATIVA])
+GO
+
+
+CREATE UNIQUE NONCLUSTERED 
+	INDEX [UN_UNIDAD_OPERATIVA_01_DESCRIPCION] 
+	   ON [dbo].[UNIDAD_OPERATIVA] ( [D_UNIDAD_OPERATIVA] )
+GO
+
+
+/*
+-- WIWI // HGF-20180917 // REACTIVAR PARA VINCULAR CON RAZON SOCIAL
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA] ADD 
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_01]  
+		FOREIGN KEY ( [K_RAZON_SOCIAL] ) 
+		REFERENCES [dbo].[RAZON_SOCIAL] ( [K_RAZON_SOCIAL] )
+GO
+
+*/
+
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA] ADD 
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_02]  
+		FOREIGN KEY ( [K_ZONA_UO] ) 
+		REFERENCES [dbo].[ZONA_UO] ( [K_ZONA_UO] ),
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_03]  
+		FOREIGN KEY ( [K_TIPO_UO] ) 
+		REFERENCES [dbo].[TIPO_UO] ( [K_TIPO_UO] ),
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_04]  
+		FOREIGN KEY ( [K_SERVIDOR] ) 
+		REFERENCES [dbo].[SERVIDOR] ( [K_SERVIDOR] )
+
+GO
+
+
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA] ADD 
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_05]  
+		FOREIGN KEY ( [K_REGION] ) 
+		REFERENCES [dbo].[REGION] ( [K_REGION] )
+
+
+-- //////////////////////////////////////////////////////
+
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA] 
+	ADD		[K_USUARIO_ALTA]	[INT]		NOT NULL,
+			[F_ALTA]			[DATETIME]	NOT NULL,
+			[K_USUARIO_CAMBIO]	[INT]		NOT NULL,
+			[F_CAMBIO]			[DATETIME]	NOT NULL,
+			[L_BORRADO]			[INT]		NOT NULL,
+			[K_USUARIO_BAJA]	[INT]		NULL,
+			[F_BAJA]			[DATETIME]	NULL;
+GO
+
+
+ALTER TABLE [dbo].[UNIDAD_OPERATIVA] ADD 
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_USUARIO_ALTA]  
+		FOREIGN KEY ([K_USUARIO_ALTA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_USUARIO_CAMBIO]  
+		FOREIGN KEY ([K_USUARIO_CAMBIO]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_UNIDAD_OPERATIVA_USUARIO_BAJA]  
+		FOREIGN KEY ([K_USUARIO_BAJA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO])
+GO
+
+
+
+
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+
+

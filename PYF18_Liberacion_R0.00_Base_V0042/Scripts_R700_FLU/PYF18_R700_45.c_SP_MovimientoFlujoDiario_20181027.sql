@@ -1,0 +1,237 @@
+-- //////////////////////////////////////////////////////////////
+-- // ARCHIVO:			
+-- //////////////////////////////////////////////////////////////
+-- // BASE DE DATOS:	PYF18_Finanzas
+-- // MODULO:			FLUJO DIARIO
+-- // OPERACION:		LIBERACION / STORED PROCEDURE
+-- //////////////////////////////////////////////////////////////
+-- // Autor:			HECTOR A. GONZALEZ DE LA FUENTE
+-- // Fecha creación:	25/OCT/2018
+-- ////////////////////////////////////////////////////////////// 
+
+USE [PYF18_Finanzas_V9999_R0]
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE --->  
+-- //////////////////////////////////////////////////////////////
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_LI_MOVIMIENTO_FLUJO_DIARIO]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_LI_MOVIMIENTO_FLUJO_DIARIO]
+GO
+
+
+CREATE PROCEDURE [dbo].[PG_LI_MOVIMIENTO_FLUJO_DIARIO]
+	@PP_L_DEBUG								INT,
+	@PP_K_SISTEMA_EXE						INT,
+	@PP_K_USUARIO_ACCION					INT,
+	-- ===========================	
+	@PP_BUSCAR								VARCHAR(255),
+	-- ===========================	
+	@PP_K_TIPO_MOVIMIENTO_FLUJO_DIARIO		INT,
+	@PP_K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO	INT,
+	@PP_K_RUBRO_FLUJO						INT,
+	@PP_K_ZONA_UO							INT,
+	@PP_K_RAZON_SOCIAL						INT,
+	@PP_K_UNIDAD_OPERATIVA					INT,
+	@PP_F_INICIAL							DATE,
+	@PP_F_FINAL								DATE	
+AS
+	
+	DECLARE @VP_MENSAJE					VARCHAR(300) = ''
+	DECLARE @VP_L_APLICAR_MAX_ROWS		INT = 1
+	
+	-- ///////////////////////////////////////////
+
+	IF @VP_MENSAJE=''
+		EXECUTE [dbo].[PG_RN_DATA_ACCESO_SELECT]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,	
+													11, -- @PP_K_DATA_SISTEMA,	
+													@OU_RESULTADO_VALIDACION = @VP_MENSAJE		OUTPUT
+	-- ///////////////////////////////////////////
+	
+	DECLARE @VP_LI_N_REGISTROS		INT
+
+	EXECUTE [dbo].[PG_SK_CONFIGURACION_LISTADO_MAX_ROWS_PESADO_GET]		@PP_L_DEBUG, @PP_K_SISTEMA_EXE,
+																		@VP_L_APLICAR_MAX_ROWS,		
+																		@OU_MAXROWS = @VP_LI_N_REGISTROS		OUTPUT		
+	-- =========================================		
+
+	IF @VP_MENSAJE<>''
+		SET @VP_LI_N_REGISTROS = 0
+
+	-- =========================================		
+
+	DECLARE @VP_K_FOLIO		INT
+
+	EXECUTE [dbo].[PG_RN_OBTENER_ID_X_REFERENCIA]		@PP_BUSCAR, 
+														@OU_K_ELEMENTO = @VP_K_FOLIO	OUTPUT
+	-- =========================================
+	
+	DECLARE @VP_L_VER_BORRADOS		[INT]		
+	
+	EXECUTE [dbo].[PG_RN_DATA_VER_BORRADOS]			@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													@OU_L_VER_BORRADOS = @VP_L_VER_BORRADOS			OUTPUT
+	-- =========================================
+
+	SELECT	TOP ( @VP_LI_N_REGISTROS )
+			FECHA_MOV.[D_TIEMPO_FECHA] AS F_MOVIMIENTO_FLUJO_DIARIO_DDMMMYYYY,
+			FECHA_DOC.[D_TIEMPO_FECHA] AS F_DOCUMENTO_DDMMMYYYY,
+			[MOVIMIENTO_FLUJO_DIARIO].*,
+			[D_ESTATUS_MOVIMIENTO_FLUJO_DIARIO], [S_ESTATUS_MOVIMIENTO_FLUJO_DIARIO],
+			[D_TIPO_MOVIMIENTO_FLUJO_DIARIO], [S_TIPO_MOVIMIENTO_FLUJO_DIARIO],
+			[D_RUBRO_FLUJO], [S_RUBRO_FLUJO],
+			[D_ZONA_UO], [S_ZONA_UO],
+			[D_UNIDAD_OPERATIVA], [S_UNIDAD_OPERATIVA],
+			[D_RAZON_SOCIAL], [S_RAZON_SOCIAL]
+			-- =====================
+	FROM	[MOVIMIENTO_FLUJO_DIARIO], 
+			[ESTATUS_MOVIMIENTO_FLUJO_DIARIO], [TIPO_MOVIMIENTO_FLUJO_DIARIO], [RUBRO_FLUJO],
+			[UNIDAD_OPERATIVA], [RAZON_SOCIAL], [ZONA_UO],
+			[TIEMPO_FECHA] AS FECHA_MOV, [TIEMPO_FECHA] AS FECHA_DOC 
+			-- =====================
+	WHERE	[MOVIMIENTO_FLUJO_DIARIO].[K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO]=[ESTATUS_MOVIMIENTO_FLUJO_DIARIO].[K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[K_TIPO_MOVIMIENTO_FLUJO_DIARIO]=[TIPO_MOVIMIENTO_FLUJO_DIARIO].[K_TIPO_MOVIMIENTO_FLUJO_DIARIO]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[K_RUBRO_FLUJO]=[RUBRO_FLUJO].[K_RUBRO_FLUJO]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[K_UNIDAD_OPERATIVA]=[UNIDAD_OPERATIVA].[K_UNIDAD_OPERATIVA]
+	AND		[UNIDAD_OPERATIVA].[K_ZONA_UO]=[ZONA_UO].[K_ZONA_UO]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[K_RAZON_SOCIAL]=[RAZON_SOCIAL].[K_RAZON_SOCIAL]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[F_MOVIMIENTO_FLUJO_DIARIO]=FECHA_MOV.[F_TIEMPO_FECHA]
+	AND		[MOVIMIENTO_FLUJO_DIARIO].[F_DOCUMENTO]=FECHA_DOC.[F_TIEMPO_FECHA]
+			-- =====================
+	AND		(		BENEFICIARIO						LIKE '%'+@PP_BUSCAR+'%' 
+				OR	REFERENCIA_1						LIKE '%'+@PP_BUSCAR+'%' 
+				OR	REFERENCIA_2						LIKE '%'+@PP_BUSCAR+'%' 
+				OR	MONTO								LIKE '%'+@PP_BUSCAR+'%' 
+				OR	SALDO_FINAL							LIKE '%'+@PP_BUSCAR+'%' 
+				OR	D_RAZON_SOCIAL						LIKE '%'+@PP_BUSCAR+'%' 
+				OR	D_UNIDAD_OPERATIVA					LIKE '%'+@PP_BUSCAR+'%' 
+				OR	K_INSTRUCCION=@VP_K_FOLIO 
+				OR	K_TRASPASO=@VP_K_FOLIO 
+				OR	K_FACTURA_CXP=@VP_K_FOLIO 
+				OR	MOVIMIENTO_FLUJO_DIARIO.K_MOVIMIENTO_FLUJO_DIARIO=@VP_K_FOLIO 		)	
+			-- =====================
+	AND		( @PP_F_INICIAL IS NULL						OR		@PP_F_INICIAL<=MOVIMIENTO_FLUJO_DIARIO.F_MOVIMIENTO_FLUJO_DIARIO )
+	AND		( @PP_F_FINAL IS NULL						OR		MOVIMIENTO_FLUJO_DIARIO.F_MOVIMIENTO_FLUJO_DIARIO<=@PP_F_FINAL )
+			-- =====================
+	AND		( @PP_K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO=-1	OR		MOVIMIENTO_FLUJO_DIARIO.K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO=@PP_K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO )
+	AND		( @PP_K_TIPO_MOVIMIENTO_FLUJO_DIARIO=-1		OR		MOVIMIENTO_FLUJO_DIARIO.K_TIPO_MOVIMIENTO_FLUJO_DIARIO=@PP_K_TIPO_MOVIMIENTO_FLUJO_DIARIO )
+	AND		( @PP_K_RUBRO_FLUJO=-1						OR		MOVIMIENTO_FLUJO_DIARIO.K_RUBRO_FLUJO=@PP_K_RUBRO_FLUJO )
+	AND		( @PP_K_UNIDAD_OPERATIVA=-1					OR		MOVIMIENTO_FLUJO_DIARIO.K_UNIDAD_OPERATIVA=@PP_K_UNIDAD_OPERATIVA )
+	AND		( @PP_K_RAZON_SOCIAL=-1						OR		MOVIMIENTO_FLUJO_DIARIO.K_RAZON_SOCIAL=@PP_K_RAZON_SOCIAL )
+	AND		( @PP_K_ZONA_UO=-1							OR		UNIDAD_OPERATIVA.K_ZONA_UO=@PP_K_ZONA_UO )
+			-- =====================		
+	ORDER BY	-- K_RAZON_SOCIAL,	
+				K_UNIDAD_OPERATIVA,	
+				F_MOVIMIENTO_FLUJO_DIARIO, O_RUBRO_FLUJO, O_MOVIMIENTO_FLUJO_DIARIO ASC
+
+	-- /////////////////////////////////////////////////////////////////////
+
+	EXECUTE [dbo].[PG_IN_BITACORA_SYS_OPERACION]	@PP_L_DEBUG, @PP_K_SISTEMA_EXE, @PP_K_USUARIO_ACCION,
+													-- ===========================================
+													2,		-- 0 al 6 // @PP_K_IMPORTANCIA_BITACORA_SYS	[INT],	
+													'SELECT',
+													@VP_MENSAJE,
+													-- ===========================================
+													'[PG_LI_MOVIMIENTO_FLUJO_DIARIO]', -- @PP_STORED_PROCEDURE			[VARCHAR] (100),
+													0, 0, 		-- @PP_K_FOLIO_1, @PP_K_FOLIO_2,
+													-- === [INT], [INT], [VARCHAR](100), [VARCHAR](100), DECIMAL(19,4), DECIMAL(19,4),
+													0, 0, @PP_BUSCAR, '' , 0.00, 0.00,
+													-- === @PP_VALOR_1 al 6_DATO
+													'', '', '@PP_BUSCAR', '', '', ''
+
+	-- /////////////////////////////////////////////////////////////////////
+GO
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // STORED PROCEDURE --->  
+-- //////////////////////////////////////////////////////////////
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PG_IN_MOVIMIENTO_FLUJO_DIARIO_SQL]') AND type in (N'P', N'PC'))
+	DROP PROCEDURE [dbo].[PG_IN_MOVIMIENTO_FLUJO_DIARIO_SQL]
+GO	
+
+
+CREATE PROCEDURE [dbo].[PG_IN_MOVIMIENTO_FLUJO_DIARIO_SQL]
+	@PP_L_DEBUG				INT,
+	@PP_K_SISTEMA_EXE		INT,
+	@PP_K_USUARIO_ACCION	INT,
+	-- ===========================
+	@PP_K_MOVIMIENTO_FLUJO_DIARIO			INT,
+	@PP_O_MOVIMIENTO_FLUJO_DIARIO			INT,
+	@PP_F_MOVIMIENTO_FLUJO_DIARIO			DATE,
+	@PP_K_TIPO_MOVIMIENTO_FLUJO_DIARIO		INT,
+	@PP_K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO	INT,
+	-- ====================================
+	@PP_K_RUBRO_FLUJO			INT,
+	@PP_K_RAZON_SOCIAL			INT,
+	@PP_K_UNIDAD_OPERATIVA		INT,
+	@PP_K_CUENTA_BANCO			INT,
+	-- ====================================
+	@PP_BENEFICIARIO			VARCHAR(100),
+	@PP_REFERENCIA_1			VARCHAR(500),
+	@PP_REFERENCIA_2			VARCHAR(500),
+	-- ====================================
+	@PP_MONTO					DECIMAL(19,4),
+	@PP_CARGO					DECIMAL(19,4),
+	@PP_ABONO					DECIMAL(19,4),
+	@PP_SALDO_FINAL				DECIMAL(19,4),
+	-- ====================================
+	@PP_F_DOCUMENTO				DATE,
+	@PP_K_FACTURA_CXP			INT,
+	@PP_K_TRASPASO				INT,
+	@PP_K_INSTRUCCION			INT
+AS
+
+	IF @PP_L_DEBUG>0
+		BEGIN
+		PRINT	'============================ [PG_IN_MOVIMIENTO_FLUJO_DIARIO_SQL]'
+		PRINT	'@PP_K_MOVIMIENTO_FLUJO_DIARIO = '+CONVERT(VARCHAR(100),@PP_K_MOVIMIENTO_FLUJO_DIARIO)
+		END
+
+	-- ==================================================
+
+	INSERT INTO	[MOVIMIENTO_FLUJO_DIARIO]
+			(	[K_MOVIMIENTO_FLUJO_DIARIO], [O_MOVIMIENTO_FLUJO_DIARIO], [F_MOVIMIENTO_FLUJO_DIARIO],
+				[K_TIPO_MOVIMIENTO_FLUJO_DIARIO], [K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO],
+				[K_RUBRO_FLUJO], [K_RAZON_SOCIAL], [K_UNIDAD_OPERATIVA],
+				[K_CUENTA_BANCO],
+				[BENEFICIARIO], [REFERENCIA_1], [REFERENCIA_2],
+				[MONTO], [CARGO], [ABONO], [SALDO_FINAL],
+				[F_DOCUMENTO], [K_FACTURA_CXP], [K_TRASPASO], [K_INSTRUCCION],
+      			-- ===========================
+				[K_USUARIO_ALTA], [F_ALTA], [K_USUARIO_CAMBIO], [F_CAMBIO],
+				[L_BORRADO], [K_USUARIO_BAJA], [F_BAJA]  )	
+		VALUES
+			(	@PP_K_MOVIMIENTO_FLUJO_DIARIO, @PP_O_MOVIMIENTO_FLUJO_DIARIO, @PP_F_MOVIMIENTO_FLUJO_DIARIO,
+				@PP_K_TIPO_MOVIMIENTO_FLUJO_DIARIO, @PP_K_ESTATUS_MOVIMIENTO_FLUJO_DIARIO,
+				@PP_K_RUBRO_FLUJO, @PP_K_RAZON_SOCIAL, @PP_K_UNIDAD_OPERATIVA,
+				@PP_K_CUENTA_BANCO,
+				@PP_BENEFICIARIO, @PP_REFERENCIA_1, @PP_REFERENCIA_2,
+				@PP_MONTO, @PP_CARGO, @PP_ABONO, @PP_SALDO_FINAL,
+				@PP_F_DOCUMENTO, @PP_K_FACTURA_CXP, @PP_K_TRASPASO, @PP_K_INSTRUCCION,
+      			-- ===========================
+				@PP_K_USUARIO_ACCION, GETDATE(), @PP_K_USUARIO_ACCION, GETDATE(),
+				0, NULL, NULL )
+
+	-- ==============================================
+GO
+
+
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////

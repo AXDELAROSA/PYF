@@ -1,0 +1,310 @@
+-- //////////////////////////////////////////////////////////////
+-- // ARCHIVO:			
+-- //////////////////////////////////////////////////////////////
+-- // BASE DE DATOS:	PYF18_Finanzas
+-- // MODULO:			CUENTA CONTABLE
+-- // OPERACION:		LIBERACION / TABLAS
+-- // AUTOR:			LBG
+-- // FECHA:            20181203
+-- ////////////////////////////////////////////////////////////// 
+
+USE [PYF18_Finanzas_V9999_R0]
+GO
+
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- // DROPs
+-- //////////////////////////////////////////////////////////////
+
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CUENTA_CONTABLE]') AND type in (N'U'))
+	DROP TABLE [dbo].[CUENTA_CONTABLE]
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[NIVEL_CUENTA_CONTABLE]') AND type in (N'U'))
+	DROP TABLE [dbo].[NIVEL_CUENTA_CONTABLE]
+GO
+
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SAT_AGRUPADOR]') AND type in (N'U'))
+	DROP TABLE [dbo].[SAT_AGRUPADOR]
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TIPO_CUENTA_CONTABLE]') AND type in (N'U'))
+	DROP TABLE [dbo].[TIPO_CUENTA_CONTABLE]
+GO
+
+
+
+
+/****************************************************************/
+/*						NIVEL_CUENTA_CONTABLE					*/
+/****************************************************************/
+
+CREATE TABLE [dbo].[NIVEL_CUENTA_CONTABLE] (
+	[K_NIVEL_CUENTA_CONTABLE]	[INT] NOT NULL,
+	[D_NIVEL_CUENTA_CONTABLE]	[VARCHAR] (100) NOT NULL,
+	[S_NIVEL_CUENTA_CONTABLE]	[VARCHAR] (10) NOT NULL,
+	[O_NIVEL_CUENTA_CONTABLE]	[INT] NOT NULL,
+	[C_NIVEL_CUENTA_CONTABLE]	[VARCHAR] (255) NOT NULL,
+	[L_NIVEL_CUENTA_CONTABLE]	[INT] NOT NULL
+) ON [PRIMARY]
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[NIVEL_CUENTA_CONTABLE]
+	ADD CONSTRAINT [PK_NIVEL_CUENTA_CONTABLE]
+		PRIMARY KEY CLUSTERED ([K_NIVEL_CUENTA_CONTABLE])
+GO
+
+CREATE UNIQUE NONCLUSTERED 
+	INDEX [UN_NIVEL_CUENTA_CONTABLE_01_DESCRIPCION] 
+	   ON [dbo].[NIVEL_CUENTA_CONTABLE] ( [D_NIVEL_CUENTA_CONTABLE] )
+GO
+
+ALTER TABLE [dbo].[NIVEL_CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_NIVEL_CUENTA_CONTABLE_01] 
+		FOREIGN KEY ( [L_NIVEL_CUENTA_CONTABLE] ) 
+		REFERENCES [dbo].[ESTATUS_ACTIVO] ( [K_ESTATUS_ACTIVO] )
+GO
+
+-- ///////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[NIVEL_CUENTA_CONTABLE] 
+	ADD		[K_USUARIO_ALTA]	[INT]		NOT NULL,
+			[F_ALTA]			[DATETIME]	NOT NULL,
+			[K_USUARIO_CAMBIO]	[INT]		NOT NULL,
+			[F_CAMBIO]			[DATETIME]	NOT NULL,
+			[L_BORRADO]			[INT]		NOT NULL,
+			[K_USUARIO_BAJA]	[INT]		NULL,
+			[F_BAJA]			[DATETIME]	NULL;
+GO
+
+
+ALTER TABLE [dbo].[NIVEL_CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_NIVEL_CUENTA_CONTABLE_USUARIO_ALTA]  
+		FOREIGN KEY ([K_USUARIO_ALTA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_NIVEL_CUENTA_CONTABLE_USUARIO_CAMBIO]  
+		FOREIGN KEY ([K_USUARIO_CAMBIO]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_NIVEL_CUENTA_CONTABLE_USUARIO_BAJA]  
+		FOREIGN KEY ([K_USUARIO_BAJA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO])
+GO
+
+
+
+/****************************************************************/
+/*					TIPO_CUENTA_CONTABLE						*/
+/****************************************************************/
+
+CREATE TABLE [dbo].[TIPO_CUENTA_CONTABLE] (
+	[K_TIPO_CUENTA_CONTABLE]	[INT] NOT NULL,
+	[D_TIPO_CUENTA_CONTABLE]	[VARCHAR] (100) NOT NULL,
+	[S_TIPO_CUENTA_CONTABLE]	[VARCHAR] (10) NOT NULL,
+	[O_TIPO_CUENTA_CONTABLE]	[INT] NOT NULL,
+	[C_TIPO_CUENTA_CONTABLE]	[VARCHAR] (255) NOT NULL,
+	[L_TIPO_CUENTA_CONTABLE]	[INT] NOT NULL	
+) ON [PRIMARY]
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[TIPO_CUENTA_CONTABLE]
+	ADD CONSTRAINT [PK_TIPO_CUENTA_CONTABLE]
+		PRIMARY KEY CLUSTERED ([K_TIPO_CUENTA_CONTABLE])
+GO
+
+CREATE UNIQUE NONCLUSTERED 
+	INDEX [UN_TIPO_CUENTA_CONTABLE_01_DESCRIPCION] 
+	   ON [dbo].[TIPO_CUENTA_CONTABLE] ( [D_TIPO_CUENTA_CONTABLE] )
+GO
+
+
+ALTER TABLE [dbo].[TIPO_CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_TIPO_CUENTA_CONTABLE_01] 
+		FOREIGN KEY ( [L_TIPO_CUENTA_CONTABLE] ) 
+		REFERENCES [dbo].[ESTATUS_ACTIVO] ( [K_ESTATUS_ACTIVO] )
+	
+GO
+
+-- ///////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[TIPO_CUENTA_CONTABLE] 
+	ADD		[K_USUARIO_ALTA]	[INT]		NOT NULL,
+			[F_ALTA]			[DATETIME]	NOT NULL,
+			[K_USUARIO_CAMBIO]	[INT]		NOT NULL,
+			[F_CAMBIO]			[DATETIME]	NOT NULL,
+			[L_BORRADO]			[INT]		NOT NULL,
+			[K_USUARIO_BAJA]	[INT]		NULL,
+			[F_BAJA]			[DATETIME]	NULL;
+GO
+
+ALTER TABLE [dbo].[TIPO_CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_TIPO_CUENTA_CONTABLE_USUARIO_ALTA]  
+		FOREIGN KEY ([K_USUARIO_ALTA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_TIPO_CUENTA_CONTABLE_USUARIO_CAMBIO]  
+		FOREIGN KEY ([K_USUARIO_CAMBIO]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_TIPO_CUENTA_CONTABLE_USUARIO_BAJA]  
+		FOREIGN KEY ([K_USUARIO_BAJA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO])
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+/****************************************************************/
+/*					SAT_AGRUPADOR						*/
+/****************************************************************/
+
+CREATE TABLE [dbo].[SAT_AGRUPADOR] (
+	[K_SAT_AGRUPADOR]	[INT]				NOT NULL,
+	[CLAVE]				[DECIMAL] (19,2)	NOT NULL,
+	[D_SAT_AGRUPADOR]	[VARCHAR] (100)		NOT NULL,
+	[S_SAT_AGRUPADOR]	[VARCHAR] (10)		NOT NULL,
+	[O_SAT_AGRUPADOR]	[INT]				NOT NULL,
+	[C_SAT_AGRUPADOR]	[VARCHAR] (255)		NOT NULL,
+	[L_SAT_AGRUPADOR]	[INT]				NOT NULL,	
+	-- ==================================
+	[K_NIVEL_AGRUPADOR] [INT]				NOT NULL
+
+) ON [PRIMARY]
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[SAT_AGRUPADOR]
+	ADD CONSTRAINT [PK_SAT_AGRUPADOR]
+		PRIMARY KEY CLUSTERED ([K_SAT_AGRUPADOR])
+GO
+
+CREATE UNIQUE NONCLUSTERED 
+	INDEX [UN_SAT_AGRUPADOR_01_CLAVE] 
+	   ON [dbo].[SAT_AGRUPADOR] ( [CLAVE] )
+GO
+
+ALTER TABLE [dbo].[SAT_AGRUPADOR] ADD 
+	CONSTRAINT [FK_SAT_AGRUPADOR_01] 
+		FOREIGN KEY ( [L_SAT_AGRUPADOR] ) 
+		REFERENCES [dbo].[ESTATUS_ACTIVO] ( [K_ESTATUS_ACTIVO] )
+	
+GO
+
+-- ///////////////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[SAT_AGRUPADOR] 
+	ADD		[K_USUARIO_ALTA]	[INT]		NOT NULL,
+			[F_ALTA]			[DATETIME]	NOT NULL,
+			[K_USUARIO_CAMBIO]	[INT]		NOT NULL,
+			[F_CAMBIO]			[DATETIME]	NOT NULL,
+			[L_BORRADO]			[INT]		NOT NULL,
+			[K_USUARIO_BAJA]	[INT]		NULL,
+			[F_BAJA]			[DATETIME]	NULL;
+GO
+
+ALTER TABLE [dbo].[SAT_AGRUPADOR] ADD 
+	CONSTRAINT [FK_SAT_AGRUPADOR_USUARIO_ALTA]  
+		FOREIGN KEY ([K_USUARIO_ALTA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_SAT_AGRUPADOR_USUARIO_CAMBIO]  
+		FOREIGN KEY ([K_USUARIO_CAMBIO]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_SAT_AGRUPADOR_USUARIO_BAJA]  
+		FOREIGN KEY ([K_USUARIO_BAJA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO])
+GO
+
+-- //////////////////////////////////////////////////////////////
+
+
+
+-- /////////////////////////////////////////////////////////////
+-- // CUENTA_CONTABLE					
+-- /////////////////////////////////////////////////////////////
+
+CREATE TABLE [dbo].[CUENTA_CONTABLE] (
+	[K_CUENTA_CONTABLE]			[INT]			NOT NULL,
+	[D_CUENTA_CONTABLE]			[VARCHAR] (200) NOT NULL,
+	[S_CUENTA_CONTABLE]			[VARCHAR] (10)	NOT NULL,
+	[O_CUENTA_CONTABLE]			[INT]			NOT NULL,
+	[C_CUENTA_CONTABLE]			[VARCHAR] (255) NOT NULL,
+	-- ============================
+	[D_CUENTA_CONTABLE_2]		[VARCHAR] (200) NOT NULL,
+	[D_CUENTA_CONTABLE_3]		[VARCHAR] (200) NOT NULL,
+	[CODIGO]					[VARCHAR] (50)	NOT NULL,
+	[L_AFECTABLE]				[INT]			NOT NULL,
+	[L_PRESUPUESTO]				[INT]			NOT NULL,
+	[L_ES_CUENTA_CONTABLE]		[INT]			NOT NULL,
+	[K_NIVEL_CUENTA_CONTABLE]	[INT]			NOT NULL,
+	[K_TIPO_CUENTA_CONTABLE]	[INT]			NOT NULL,
+	[K_SAT_AGRUPADOR]			[INT]			NOT NULL,
+
+) ON [PRIMARY]
+GO
+
+
+-- //////////////////////////////////////////////////////
+
+ALTER TABLE [dbo].[CUENTA_CONTABLE]
+	ADD CONSTRAINT [PK_CUENTA_CONTABLE]
+		PRIMARY KEY CLUSTERED ([K_CUENTA_CONTABLE])
+GO
+
+
+-- //////////////////////////////////////////////////////
+
+-- WIWI // HGF
+ALTER TABLE [dbo].[CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_CUENTA_CONTABLE_01] 
+		FOREIGN KEY (K_NIVEL_CUENTA_CONTABLE) 
+		REFERENCES [dbo].[NIVEL_CUENTA_CONTABLE] ([K_NIVEL_CUENTA_CONTABLE]),
+	CONSTRAINT [FK_CUENTA_CONTABLE_03] 
+		FOREIGN KEY ([K_TIPO_CUENTA_CONTABLE]) 
+		REFERENCES [dbo].[TIPO_CUENTA_CONTABLE] ([K_TIPO_CUENTA_CONTABLE]),
+	CONSTRAINT [FK_CUENTA_CONTABLE_04] 
+		FOREIGN KEY ([K_SAT_AGRUPADOR]) 
+		REFERENCES [dbo].[SAT_AGRUPADOR] ([K_SAT_AGRUPADOR])
+GO
+
+-- //////////////////////////////////////////////////////
+
+
+ALTER TABLE [dbo].[CUENTA_CONTABLE] 
+	ADD		[K_USUARIO_ALTA]				[INT]		NOT NULL,
+			[F_ALTA]						[DATETIME]	NOT NULL,
+			[K_USUARIO_CAMBIO]				[INT]		NOT NULL,
+			[F_CAMBIO]						[DATETIME]	NOT NULL,
+			[L_BORRADO]						[INT]		NOT NULL,
+			[K_USUARIO_BAJA]				[INT]		NULL,
+			[F_BAJA]						[DATETIME]	NULL;
+GO
+
+
+ALTER TABLE [dbo].[CUENTA_CONTABLE] ADD 
+	CONSTRAINT [FK_CUENTA_CONTABLE_USUARIO_ALTA]  
+		FOREIGN KEY ([K_USUARIO_ALTA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_CUENTA_CONTABLE_USUARIO_CAMBIO]  
+		FOREIGN KEY ([K_USUARIO_CAMBIO]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO]),
+	CONSTRAINT [FK_CUENTA_CONTABLE_USUARIO_BAJA]  
+		FOREIGN KEY ([K_USUARIO_BAJA]) 
+		REFERENCES [dbo].[USUARIO] ([K_USUARIO])
+GO
+
+
+
+
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
+-- //////////////////////////////////////////////////////////////
